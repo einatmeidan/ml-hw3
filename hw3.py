@@ -1,6 +1,6 @@
 ###### Your ID ######
-# ID1: 123456789
-# ID2: 987654321
+# ID1: 206630915
+# ID2: 208004416
 #####################
 import numpy as np
 
@@ -8,15 +8,10 @@ def add_bias_term(X):
     """
     Add a bias term to each sample of the input data.
     """
-
-    ###########################################################################
-    # TODO: Implement the function in section below.                          #
-    ###########################################################################
-    
-    ###########################################################################
-    #                             END OF YOUR CODE                            #
-    ###########################################################################
+    bias = np.ones((X.shape[0], 1))
+    X = np.hstack((bias, X))
     return X
+
 
 class LogisticRegressionGD():
     """
@@ -68,14 +63,8 @@ class LogisticRegressionGD():
         """
         class_1_prob = np.nan * np.ones(X.shape[0])
         assert X.shape[1] == self.w_.shape[0]
-
-        ###########################################################################
-        # TODO: Implement the function in section below.                          #
-        ###########################################################################
-
-        ###########################################################################
-        #                             END OF YOUR CODE                            #
-        ###########################################################################
+        weighted_sum   = X @ self.w_
+        class_1_prob = 1/(1+np.exp(-weighted_sum))
         return class_1_prob
         
 
@@ -97,14 +86,8 @@ class LogisticRegressionGD():
           Predicted class labels for all the instances; must use the **same type and value** as in ``y_true`` passed to ``fit``.
         """
         y_pred = np.nan * np.ones(X.shape[0])
-    
-        ###########################################################################
-        # TODO: Implement the function in section below.                          #
-        ###########################################################################
-
-        ###########################################################################
-        #                             END OF YOUR CODE                            #
-        ###########################################################################
+        probs = self.predict_proba(X)
+        y_pred = np.where(probs >= threshold, self.class_names[1], self.class_names[0])
         return y_pred
 
     
@@ -126,16 +109,10 @@ class LogisticRegressionGD():
           The BCE loss.
           Make sure to normalize the BCE loss by the number of samples.
         """
-
         y_01 = np.where(y == self.class_names[0], 0, 1) # represents the class 0/1 labels
         loss = None
-        ###########################################################################
-        # TODO: Implement the function in section below.                          #
-        ###########################################################################
- 
-        ###########################################################################
-        #                             END OF YOUR CODE                            #
-        ###########################################################################
+        probs = self.predict_proba(X)
+        loss = -np.mean(y_01 * np.log(probs) + (1 - y_01) * np.log(1 - probs))
         return loss
 
 
@@ -172,12 +149,16 @@ class LogisticRegressionGD():
         # TODO: Implement the function in section below.                          #
         # Append each iteration's BCE loss to self.loss_history_.                 #
         ###########################################################################
-
-        ###########################################################################
-        #                             END OF YOUR CODE                            #
-        ###########################################################################
-        
-
+        for iteration in range(self.max_iter):
+          predicted_probs = self.predict_proba(X)
+          gradient = (1 / len(y_01)) * (X.T @ (predicted_probs - y_01))
+          self.w_ -= self.learning_rate * gradient
+          current_loss = self.BCE_loss(X, y)
+          self.loss_history_.append(current_loss)
+          if len(self.loss_history_) > 1:
+            loss_reduction = self.loss_history_[-2] - self.loss_history_[-1]
+            if loss_reduction < self.eps:
+              break
 
 class LogisticRegressionGD_MB(LogisticRegressionGD):
     """
