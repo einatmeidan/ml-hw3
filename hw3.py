@@ -362,7 +362,7 @@ class OneVsAllClassifier:
         # self.classifiers_.                                                     #
         ###########################################################################
         for current_class in self.classes_:
-            binary_labels = np.where(y == current_class, current_class, y[y != current_class][0])
+            binary_labels = np.where(y == current_class, current_class,[0])
             classifier = self.binary_classifier_class(**self.binary_classifier_kwargs)
             classifier.fit(X, binary_labels)
             self.classifiers_.append(classifier)
