@@ -207,18 +207,26 @@ class LogisticRegressionGD_MB(LogisticRegressionGD):
             y_01_shuffled = y_01[permutation]
             return X_shuffled, y_shuffled, y_01_shuffled
 
-        
-
         ###########################################################################
         # TODO: Implement the function in section below.                          #
         # Append each iteration's BCE loss to self.loss_history_.                 #
         ###########################################################################
+        for epoch in range(num_epochs):
+          X_shuffled, y_shuffled, y_01_shuffled = shuffle_data(X, y, y_01)
+          for batch in range(0, X.shape[0], batch_size):
+            X_batch = X_shuffled[batch:batch+batch_size]
+            y_01_batch = y_01_shuffled[batch:batch+batch_size]
+            predicted_probs = self.predict_proba(X_batch)
+            gradient = (1 / len(y_01_batch)) * (X_batch.T @ (predicted_probs - y_01_batch))
+            self.w_ -= self.learning_rate * gradient
+          current_loss = self.BCE_loss(X, y)
+          self.loss_history_.append(current_loss)
+          if len(self.loss_history_) > 1:
+            loss_reduction = self.loss_history_[-2] - self.loss_history_[-1]
+            if loss_reduction < self.eps:
+              break
 
-        ###########################################################################
-        #                             END OF YOUR CODE                            #
-        ###########################################################################
-    
-      
+
 def calc_metrics(y_true, y_pred, positive_class):
     """
     Calculate the metrics for the LogisticRegression classifier.
@@ -243,11 +251,19 @@ def calc_metrics(y_true, y_pred, positive_class):
     ###########################################################################
     # TODO: Implement the function in section below.                          #
     ###########################################################################
-
-    ###########################################################################
-    #                             END OF YOUR CODE                            #
-    ###########################################################################
-   
+    tp = np.sum((y_true == positive_class) & (y_pred == positive_class))
+    fp = np.sum((y_true != positive_class) & (y_pred == positive_class))
+    tn = np.sum((y_true != positive_class) & (y_pred != positive_class))
+    fn = np.sum((y_true == positive_class) & (y_pred != positive_class))
+    tpr = tp / (tp + fn) 
+    fpr = fp / (fp + tn)
+    tnr = tn / (tn + fp)
+    fnr = fn / (fn + tp)
+    accuracy = (tp + tn) / len(y_true)
+    precision = tp / (tp + fp) 
+    risk = (fp + fn) 
+    f1 = 2 * (precision * tpr) / (precision + tpr)
+    metric_dict = dict(tp=tp, fp=fp, tn=tn, fn=fn, tpr=tpr, fpr=fpr, tnr=tnr, fnr=fnr, accuracy=accuracy, precision=precision, risk=risk, f1=f1)
     return metric_dict
 
 
@@ -287,10 +303,14 @@ def fpr_tpr_per_threshold(y_true, positive_class_probs, positive_class):
     ###########################################################################
     # TODO: Implement the function in section below.                          #
     ###########################################################################
-
-    ###########################################################################
-    #                             END OF YOUR CODE                            #
-    ###########################################################################
+    for threshold in prob_thresholds:
+        y_pred_binary = (positive_class_probs >= threshold).astype(int)
+        tp = np.sum((y_true_binary == 1) & (y_pred_binary == 1))
+        fp = np.sum((y_true_binary == 0) & (y_pred_binary == 1))
+        tn = np.sum((y_true_binary == 0) & (y_pred_binary == 0))
+        fn = np.sum((y_true_binary == 1) & (y_pred_binary == 0))
+        tpr.append(tp / (tp + fn))
+        fpr.append(fp / (fp + tn))
     return fpr, tpr
 
 
@@ -341,10 +361,11 @@ class OneVsAllClassifier:
         # all other classes. Fit a new binary classifier and append it to         #
         # self.classifiers_.                                                     #
         ###########################################################################
-
-        ###########################################################################
-        #                             END OF YOUR CODE                            #
-        ###########################################################################
+        for current_class in self.classes_:
+            binary_labels = np.where(y == current_class, current_class, y[y != current_class][0])
+            classifier = self.binary_classifier_class(**self.binary_classifier_kwargs)
+            classifier.fit(X, binary_labels)
+            self.classifiers_.append(classifier)
         return self
 
     def predict_proba(self, X):
@@ -369,10 +390,8 @@ class OneVsAllClassifier:
         # Fill each column with the positive-class probabilities from the          #
         # corresponding binary classifier.                                        #
         ###########################################################################
-
-        ###########################################################################
-        #                             END OF YOUR CODE                            #
-        ###########################################################################
+        for class_index in range(len(self.classes_)):
+            scores[:, class_index] = self.classifiers_[class_index].predict_proba(X)
         return scores
 
     def predict(self, X):
@@ -389,8 +408,7 @@ class OneVsAllClassifier:
         ###########################################################################
         # TODO: Implement the function in section below.                          #
         ###########################################################################
-
-        ###########################################################################
-        #                             END OF YOUR CODE                            #
-        ###########################################################################
+        all_scores = self.predict_proba(X)
+        best_class_index = np.argmax(all_scores, axis=1)
+        y_pred = self.classes_[best_class_index]
         return y_pred
